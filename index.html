@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topografie-Lernapp</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Eigenes CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header mit Benutzerbereich -->
+        <header>
+            <h1>🌎 Topografie-Trainer</h1>
+            <div id="user-area">
+                <input type="text" id="username-input" placeholder="Dein Name" autocomplete="off">
+                <button id="login-btn">Anmelden</button>
+                <span id="current-user"></span>
+                <button id="logout-btn" style="display:none;">Abmelden</button>
+            </div>
+        </header>
+
+        <!-- Hauptbereich: Karte + Steuerung -->
+        <main>
+            <div id="sidebar">
+                <div id="category-select">
+                    <h3>Kategorie</h3>
+                    <select id="category">
+                        <option value="alle">Alle Begriffe</option>
+                        <option value="Land">Länder</option>
+                        <option value="Hauptstadt">Hauptstädte</option>
+                        <option value="Fluss">Flüsse</option>
+                        <option value="Meer">Meere & Ozeane</option>
+                        <option value="Gebirge">Gebirge & Landschaften</option>
+                        <option value="Insel">Inseln, Halbinseln</option>
+                        <option value="See">Seen</option>
+                        <option value="Wüste">Wüsten</option>
+                        <option value="Kontinent">Kontinente</option>
+                    </select>
+                </div>
+
+                <div id="mode-select">
+                    <h3>Spielmodus</h3>
+                    <button id="mode-learn" class="mode-btn active">Lernen</button>
+                    <button id="mode-quiz" class="mode-btn">Quiz (Klick)</button>
+                    <button id="mode-mc" class="mode-btn">Multiple Choice</button>
+                </div>
+
+                <div id="difficulty-select" style="margin-top:1rem;">
+                    <h3>Schwierigkeitsgrad</h3>
+                    <select id="difficulty">
+                        <option value="all">Alle</option>
+                        <option value="0-1">Neu / schwierig (Stufe 0-1)</option>
+                        <option value="2-3">In Übung (Stufe 2-3)</option>
+                        <option value="4-5">Gut gefestigt (Stufe 4-5)</option>
+                    </select>
+                </div>
+
+                <div id="progress-summary">
+                    <h3>Dein Fortschritt</h3>
+                    <p>Begriffe gesamt: <span id="total-terms">0</span></p>
+                    <p>Gelernt (Stufe ≥1): <span id="learned-terms">0</span></p>
+                    <p>Sicher (Stufe ≥3): <span id="secure-terms">0</span></p>
+                </div>
+
+                <button id="reset-progress" style="margin-top:1rem;">Fortschritt zurücksetzen</button>
+            </div>
+
+            <div id="map-container">
+                <div id="quiz-info">
+                    <span id="current-term"></span>
+                    <span id="feedback"></span>
+                </div>
+                <div id="map"></div>
+                <div id="next-btn-container">
+                    <button id="next-question" disabled>Nächste Frage</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Eigene Skripte (Reihenfolge beachten) -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
