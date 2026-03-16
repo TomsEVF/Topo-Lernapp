@@ -1,4 +1,4 @@
-//Globale Variablen & Konfiguration
+// ==================== Globale Variablen & Konfiguration ====================
 let map;
 let currentTerm = null;
 let currentMode = 'learn'; // 'learn', 'quiz', 'mc'
@@ -11,10 +11,13 @@ let markers = [];
 let mcMarkers = [];
 let mcCorrectIndex = -1;
 
-// Bunny.net Konfiguration (aus config.js)
-const BUNNY_ENABLED = typeof BUNNY_CONFIG !== 'undefined' && BUNNY_CONFIG.accessKey;
+// Bunny.net Konfiguration (aus config.js) – nur aktivieren, wenn ein gültiger Key gesetzt ist
+const BUNNY_ENABLED = typeof BUNNY_CONFIG !== 'undefined' && 
+                      BUNNY_CONFIG.accessKey && 
+                      BUNNY_CONFIG.accessKey !== '' && 
+                      BUNNY_CONFIG.accessKey.length > 10;
 
-//Initialisierung
+// ==================== Initialisierung ====================
 async function init() {
     // Karte initialisieren
     map = L.map('map').setView([20, 0], 2);
@@ -50,7 +53,7 @@ async function init() {
     }
 }
 
-//Daten laden
+// ==================== Daten laden ====================
 async function loadGeoData() {
     try {
         const response = await fetch('data/geodata.json');
@@ -68,7 +71,7 @@ async function loadGeoData() {
     }
 }
 
-//Benutzerverwaltung
+// ==================== Benutzerverwaltung ====================
 async function login() {
     const username = document.getElementById('username-input').value.trim();
     if (!username) return;
@@ -133,8 +136,11 @@ function loadFromLocalStorage(username) {
 }
 
 async function loadFromBunny(username) {
+    if (!BUNNY_ENABLED) return null;
     try {
-        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
+        // Sicherstellen, dass kein doppelter Slash entsteht
+        const base = BUNNY_CONFIG.endpoint.replace(/\/$/, '');
+        const url = `${base}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
         const response = await fetch(url, {
             headers: { 'AccessKey': BUNNY_CONFIG.accessKey }
         });
@@ -160,9 +166,11 @@ async function saveUserProfile() {
 }
 
 async function saveToBunny(profile) {
+    if (!BUNNY_ENABLED) return;
     try {
+        const base = BUNNY_CONFIG.endpoint.replace(/\/$/, '');
         const filename = `${profile.username}.json`;
-        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZoneName}/users/${filename}`;
+        const url = `${base}/${BUNNY_CONFIG.storageZoneName}/users/${filename}`;
         const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
         await fetch(url, {
             method: 'PUT',
@@ -177,7 +185,7 @@ async function saveToBunny(profile) {
     }
 }
 
-//Fortschrittslogik
+// ==================== Fortschrittslogik ====================
 function getTermLevel(termId) {
     if (!userProfile || !userProfile.stats[termId]) return 0;
     const stat = userProfile.stats[termId];
@@ -229,7 +237,7 @@ function resetProgress() {
     }
 }
 
-//Term-Auswahl nach Schwierigkeit
+// ==================== Term-Auswahl nach Schwierigkeit ====================
 function filterTermsByDifficulty(terms) {
     if (currentDifficulty === 'all' || !userProfile) return terms;
     const [min, max] = currentDifficulty.split('-').map(Number);
@@ -253,7 +261,7 @@ function getRandomTerm() {
     return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-//Ansichten aktualisieren
+// ==================== Ansichten aktualisieren ====================
 function refreshView() {
     clearMarkers();
     if (currentMode === 'learn') {
@@ -301,7 +309,20 @@ function showAllMarkers() {
     });
 }
 
-//Quiz-Modus (Klick)
+// ==================== Quiz-Modus (Klick) mit dynamischer Toleranz ====================
+function getToleranceForCategory(kategorie) {
+    // Große Objekte: Meere, Flüsse, Gebirge, Seen, Wüsten, Regionen, Kontinente
+    if (['Meer', 'Fluss', 'Gebirge', 'See', 'Wüste', 'Region', 'Kontinent'].includes(kategorie)) {
+        return 500; // km
+    }
+    // Mittlere Objekte: Inseln, Halbinseln, Kaps, Inselgruppen
+    if (['Insel', 'Halbinsel', 'Kap', 'Inselgruppe'].includes(kategorie)) {
+        return 200;
+    }
+    // Kleine Objekte: Länder, Hauptstädte, alles andere
+    return 100;
+}
+
 function nextQuestion() {
     if (currentMode === 'learn') return;
     clearMarkers();
@@ -328,15 +349,16 @@ function onMapClick(e) {
     const target = L.latLng(currentTerm.lat, currentTerm.lon);
     const distance = clicked.distanceTo(target) / 1000; // in km
 
+    const tolerance = getToleranceForCategory(currentTerm.kategorie);
     let isCorrect = false;
     let feedbackText = '';
-    if (distance < 100) {
+    if (distance < tolerance) {
         isCorrect = true;
-        feedbackText = '✅ Richtig! (Entfernung < 100 km)';
-    } else if (distance < 300) {
-        feedbackText = '⚠️ Nahe dran (Entfernung ' + distance.toFixed(0) + ' km)';
+        feedbackText = `✅ Richtig! (Entfernung ${distance.toFixed(0)} km < ${tolerance} km)`;
+    } else if (distance < tolerance * 2) {
+        feedbackText = `⚠️ Nahe dran (Entfernung ${distance.toFixed(0)} km)`;
     } else {
-        feedbackText = '❌ Falsch (Entfernung ' + distance.toFixed(0) + ' km)';
+        feedbackText = `❌ Falsch (Entfernung ${distance.toFixed(0)} km)`;
     }
 
     // Marker setzen (Klickposition)
@@ -414,5 +436,5 @@ function shuffleArray(arr) {
     return arr.sort(() => Math.random() - 0.5);
 }
 
-//Start
+// ==================== Start ====================
 window.addEventListener('load', init);
