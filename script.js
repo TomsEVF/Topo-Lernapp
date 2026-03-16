@@ -17,6 +17,13 @@ const BUNNY_ENABLED = typeof BUNNY_CONFIG !== 'undefined' &&
                       BUNNY_CONFIG.accessKey !== '' && 
                       BUNNY_CONFIG.accessKey.length > 10;
 
+// Hilfsfunktion für korrekte Bunny.net-URL (Storage-API)
+function getBunnyUrl(username) {
+    if (!BUNNY_ENABLED) return null;
+    const base = BUNNY_CONFIG.apiEndpoint.replace(/\/$/, '');
+    return `${base}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
+}
+
 // ==================== Initialisierung ====================
 async function init() {
     // Karte initialisieren
@@ -62,7 +69,6 @@ async function loadGeoData() {
         if (allTerms.length === 0) {
             alert('Warnung: Keine Geodaten geladen. Bitte überprüfe data/geodata.json');
         }
-        // Jeder Begriff bekommt eine eindeutige ID (bereits in JSON vorhanden)
         updateProgressSummary();
     } catch (error) {
         console.error('Fehler beim Laden der Geodaten:', error);
@@ -83,9 +89,7 @@ async function login() {
     document.getElementById('logout-btn').style.display = 'inline-block';
     localStorage.setItem('lastUser', username);
 
-    // Profil laden (von bunny.net oder localStorage)
     await loadUserProfile(username);
-
     refreshView();
 }
 
@@ -104,16 +108,13 @@ function logout() {
 }
 
 async function loadUserProfile(username) {
-    // Zuerst versuchen, von bunny.net zu laden (falls konfiguriert)
     let profile = null;
     if (BUNNY_ENABLED) {
         profile = await loadFromBunny(username);
     }
-    // Fallback: localStorage
     if (!profile) {
         profile = loadFromLocalStorage(username);
     }
-    // Wenn immer noch nichts, neues Profil anlegen
     if (!profile) {
         profile = {
             username: username,
@@ -125,7 +126,6 @@ async function loadUserProfile(username) {
         profile.lastLogin = new Date().toISOString();
     }
     userProfile = profile;
-    // Profil speichern (aktualisiert lastLogin)
     saveUserProfile();
 }
 
@@ -138,9 +138,7 @@ function loadFromLocalStorage(username) {
 async function loadFromBunny(username) {
     if (!BUNNY_ENABLED) return null;
     try {
-        // Sicherstellen, dass kein doppelter Slash entsteht
-        const base = BUNNY_CONFIG.endpoint.replace(/\/$/, '');
-        const url = `${base}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
+        const url = getBunnyUrl(username);
         const response = await fetch(url, {
             headers: { 'AccessKey': BUNNY_CONFIG.accessKey }
         });
@@ -155,11 +153,9 @@ async function loadFromBunny(username) {
 
 async function saveUserProfile() {
     if (!userProfile) return;
-    // Zuerst in localStorage speichern (immer)
     const key = `profile_${userProfile.username}`;
     localStorage.setItem(key, JSON.stringify(userProfile));
 
-    // Dann in bunny.net speichern (falls möglich)
     if (BUNNY_ENABLED) {
         await saveToBunny(userProfile);
     }
@@ -168,9 +164,7 @@ async function saveUserProfile() {
 async function saveToBunny(profile) {
     if (!BUNNY_ENABLED) return;
     try {
-        const base = BUNNY_CONFIG.endpoint.replace(/\/$/, '');
-        const filename = `${profile.username}.json`;
-        const url = `${base}/${BUNNY_CONFIG.storageZoneName}/users/${filename}`;
+        const url = getBunnyUrl(profile.username);
         const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
         await fetch(url, {
             method: 'PUT',
@@ -289,7 +283,7 @@ function clearMarkers() {
 
 function showAllMarkers() {
     clearMarkers();
-    let terms = allTerms.filter(t => t.lat && t.lon); // Nur mit Koordinaten anzeigen
+    let terms = allTerms.filter(t => t.lat && t.lon);
     if (currentCategory !== 'alle') {
         terms = terms.filter(t => t.kategorie === currentCategory);
     }
@@ -309,7 +303,7 @@ function showAllMarkers() {
     });
 }
 
-// ==================== Quiz-Modus (Klick) mit dynamischer Toleranz ====================
+// ==================== Quiz-Modus mit dynamischer Toleranz ====================
 function getToleranceForCategory(kategorie) {
     // Große Objekte: Meere, Flüsse, Gebirge, Seen, Wüsten, Regionen, Kontinente
     if (['Meer', 'Fluss', 'Gebirge', 'See', 'Wüste', 'Region', 'Kontinent'].includes(kategorie)) {
@@ -335,10 +329,8 @@ function nextQuestion() {
     document.getElementById('next-question').disabled = true;
 
     if (currentMode === 'quiz') {
-        // Klick-Modus: Nutzer klickt auf Karte
         map.once('click', onMapClick);
     } else if (currentMode === 'mc') {
-        // Multiple Choice: 4 Marker setzen, einer ist richtig
         setupMultipleChoice(term);
     }
 }
@@ -361,35 +353,28 @@ function onMapClick(e) {
         feedbackText = `❌ Falsch (Entfernung ${distance.toFixed(0)} km)`;
     }
 
-    // Marker setzen (Klickposition)
     L.marker(clicked).addTo(map).bindPopup('Deine Auswahl').openPopup();
-    // Marker für richtige Position
     L.marker(target).addTo(map).bindPopup(`Richtig: ${currentTerm.name}`);
 
     document.getElementById('feedback').textContent = feedbackText;
     document.getElementById('next-question').disabled = false;
 
-    // Fortschritt speichern
     if (userProfile) {
         updateProgress(currentTerm.id, isCorrect);
     }
 }
 
 function setupMultipleChoice(correctTerm) {
-    // Zufällige 3 andere Begriffe aus ähnlicher Kategorie (mit Koordinaten)
     let others = allTerms.filter(t => t.kategorie === correctTerm.kategorie && t.id !== correctTerm.id && t.lat && t.lon);
     if (others.length < 3) {
-        // Falls nicht genug, einfach alle anderen mit Koordinaten
         others = allTerms.filter(t => t.id !== correctTerm.id && t.lat && t.lon);
     }
-    // Zufällige Auswahl
     others = shuffleArray(others).slice(0, 3);
     const options = [correctTerm, ...others];
     const shuffled = shuffleArray(options);
 
     mcCorrectIndex = shuffled.findIndex(t => t.id === correctTerm.id);
 
-    // Marker setzen
     shuffled.forEach((term, idx) => {
         if (term.lat && term.lon) {
             const marker = L.marker([term.lat, term.lon], {
@@ -410,7 +395,6 @@ function onMCAnswer(selectedIdx, termId) {
     if (userProfile) {
         updateProgress(currentTerm.id, isCorrect);
     }
-    // Antwort-Markierung
     mcMarkers.forEach((m, idx) => {
         let bgColor = 'white';
         let borderColor = 'blue';
@@ -421,7 +405,7 @@ function onMCAnswer(selectedIdx, termId) {
             textColor = 'white';
         }
         if (idx === mcCorrectIndex) {
-            borderColor = 'green'; // grüner Rand für die richtige Antwort
+            borderColor = 'green';
         }
         
         m.setIcon(L.divIcon({ 
@@ -431,7 +415,6 @@ function onMCAnswer(selectedIdx, termId) {
     });
 }
 
-// Hilfsfunktion zum Mischen
 function shuffleArray(arr) {
     return arr.sort(() => Math.random() - 0.5);
 }
