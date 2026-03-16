@@ -12,16 +12,23 @@ let mcMarkers = [];
 let mcCorrectIndex = -1;
 
 // Bunny.net Konfiguration (aus config.js) – nur aktivieren, wenn ein gültiger Key gesetzt ist
-const BUNNY_ENABLED = typeof BUNNY_CONFIG !== 'undefined' && 
-                      BUNNY_CONFIG.accessKey && 
-                      BUNNY_CONFIG.accessKey !== '' && 
-                      BUNNY_CONFIG.accessKey.length > 10;
+const BUNNY_ENABLED = (() => {
+    if (typeof BUNNY_CONFIG === 'undefined') return false;
+    if (!BUNNY_CONFIG.accessKey) return false;
+    if (BUNNY_CONFIG.accessKey === '' || BUNNY_CONFIG.accessKey.length < 10) return false;
+    // Prüfe ob notwendige Felder vorhanden
+    if (!BUNNY_CONFIG.storageZoneName) return false;
+    const endpoint = BUNNY_CONFIG.apiEndpoint || BUNNY_CONFIG.endpoint;
+    if (!endpoint) return false;
+    return true;
+})();
 
 // Hilfsfunktion für korrekte Bunny.net-URL (Storage-API)
 function getBunnyUrl(username) {
     if (!BUNNY_ENABLED) return null;
-    const base = BUNNY_CONFIG.apiEndpoint.replace(/\/$/, '');
-    return `${base}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
+    // Verwende apiEndpoint oder endpoint, entferne abschließenden Slash
+    const endpoint = (BUNNY_CONFIG.apiEndpoint || BUNNY_CONFIG.endpoint).replace(/\/$/, '');
+    return `${endpoint}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
 }
 
 // ==================== Initialisierung ====================
@@ -139,6 +146,7 @@ async function loadFromBunny(username) {
     if (!BUNNY_ENABLED) return null;
     try {
         const url = getBunnyUrl(username);
+        if (!url) return null;
         const response = await fetch(url, {
             headers: { 'AccessKey': BUNNY_CONFIG.accessKey }
         });
@@ -165,6 +173,7 @@ async function saveToBunny(profile) {
     if (!BUNNY_ENABLED) return;
     try {
         const url = getBunnyUrl(profile.username);
+        if (!url) return;
         const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
         await fetch(url, {
             method: 'PUT',
