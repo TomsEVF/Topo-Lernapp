@@ -32,4 +32,15 @@ Sie bietet eine interaktive Karte, verschiedene Spielmodi und speichert den Lern
 Die Datei `data/geodata.json` enthält bereits einige Beispiel-Begriffe. Du musst alle Begriffe aus der PDF `Topo_Merkstoff_RS.pdf` ergänzen und die Koordinaten recherchieren.  
 Nutze dazu z.B. [Google Maps](https://maps.google.com) oder [Nominatim](https://nominatim.openstreetmap.org/).
 
-## 📁 Projektstruktur (im Repository)
+## 🔧 Vorbereitung
+
+### Geodaten vervollständigen
+Die Datei `data/geodata.json` enthält bereits viele Begriffe, aber **die Koordinaten sind teilweise noch Platzhalter**.  
+Damit die App korrekt funktioniert, musst du für jeden Eintrag die richtigen Breiten- und Längengrade recherchieren (z.B. über Google Maps oder Nominatim) und in der JSON-Datei eintragen.  
+Begriffe mit `lat: 0, lon: 0` werden in der App ignoriert (weder im Lernen-Modus noch in Quizfragen).
+
+### Bunny.net Cloud-Speicher (optional)
+- Erstelle einen Storage Zone in bunny.net, z.B. `topo-lernapp-profiles`
+- Lege darin einen Ordner `users/` an
+- Kopiere `config.js` und trage deine Zugangsdaten ein
+- **Achtung:** Der AccessKey ist im Client sichtbar. Schränke daher CORS auf deine GitHub-Pages-Domain ein oder verwende einen Proxy.

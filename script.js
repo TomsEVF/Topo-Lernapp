@@ -54,11 +54,17 @@ async function init() {
 async function loadGeoData() {
     try {
         const response = await fetch('data/geodata.json');
+        if (!response.ok) throw new Error('Netzwerkantwort war nicht ok');
         allTerms = await response.json();
-        // Jeder Begriff bekommt eine eindeutige ID (den Namen)
+        if (allTerms.length === 0) {
+            alert('Warnung: Keine Geodaten geladen. Bitte überprüfe data/geodata.json');
+        }
+        // Jeder Begriff bekommt eine eindeutige ID (bereits in JSON vorhanden)
         updateProgressSummary();
     } catch (error) {
         console.error('Fehler beim Laden der Geodaten:', error);
+        alert('Fehler beim Laden der Geodaten. Die App funktioniert nicht richtig.');
+        allTerms = [];
     }
 }
 
@@ -90,6 +96,8 @@ function logout() {
     localStorage.removeItem('lastUser');
     clearMarkers();
     document.getElementById('current-term').textContent = '';
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('next-question').disabled = true;
 }
 
 async function loadUserProfile(username) {
@@ -126,7 +134,7 @@ function loadFromLocalStorage(username) {
 
 async function loadFromBunny(username) {
     try {
-        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZone}/users/${username}.json`;
+        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZoneName}/users/${username}.json`;
         const response = await fetch(url, {
             headers: { 'AccessKey': BUNNY_CONFIG.accessKey }
         });
@@ -154,7 +162,7 @@ async function saveUserProfile() {
 async function saveToBunny(profile) {
     try {
         const filename = `${profile.username}.json`;
-        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZone}/users/${filename}`;
+        const url = `${BUNNY_CONFIG.endpoint}/${BUNNY_CONFIG.storageZoneName}/users/${filename}`;
         const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
         await fetch(url, {
             method: 'PUT',
@@ -232,13 +240,14 @@ function filterTermsByDifficulty(terms) {
 }
 
 function getRandomTerm() {
-    let candidates = allTerms;
+    // Nur Begriffe mit gültigen Koordinaten berücksichtigen
+    let candidates = allTerms.filter(t => t.lat && t.lon);
     if (currentCategory !== 'alle') {
-        candidates = allTerms.filter(t => t.kategorie === currentCategory);
+        candidates = candidates.filter(t => t.kategorie === currentCategory);
     }
     candidates = filterTermsByDifficulty(candidates);
     if (candidates.length === 0) {
-        alert('Keine Begriffe in dieser Kategorie/Schwierigkeit.');
+        alert('Keine Begriffe in dieser Kategorie/Schwierigkeit mit gültigen Koordinaten.');
         return null;
     }
     return candidates[Math.floor(Math.random() * candidates.length)];
@@ -272,7 +281,7 @@ function clearMarkers() {
 
 function showAllMarkers() {
     clearMarkers();
-    let terms = allTerms;
+    let terms = allTerms.filter(t => t.lat && t.lon); // Nur mit Koordinaten anzeigen
     if (currentCategory !== 'alle') {
         terms = terms.filter(t => t.kategorie === currentCategory);
     }
@@ -345,11 +354,11 @@ function onMapClick(e) {
 }
 
 function setupMultipleChoice(correctTerm) {
-    // Zufällige 3 andere Begriffe aus ähnlicher Kategorie
-    let others = allTerms.filter(t => t.kategorie === correctTerm.kategorie && t.id !== correctTerm.id);
+    // Zufällige 3 andere Begriffe aus ähnlicher Kategorie (mit Koordinaten)
+    let others = allTerms.filter(t => t.kategorie === correctTerm.kategorie && t.id !== correctTerm.id && t.lat && t.lon);
     if (others.length < 3) {
-        // Falls nicht genug, einfach alle anderen
-        others = allTerms.filter(t => t.id !== correctTerm.id);
+        // Falls nicht genug, einfach alle anderen mit Koordinaten
+        others = allTerms.filter(t => t.id !== correctTerm.id && t.lat && t.lon);
     }
     // Zufällige Auswahl
     others = shuffleArray(others).slice(0, 3);
@@ -381,13 +390,22 @@ function onMCAnswer(selectedIdx, termId) {
     }
     // Antwort-Markierung
     mcMarkers.forEach((m, idx) => {
+        let bgColor = 'white';
+        let borderColor = 'blue';
+        let textColor = 'black';
+        
         if (idx === selectedIdx) {
-            m.setIcon(L.divIcon({ className: 'mc-marker', html: `<div style="background:${isCorrect ? 'green' : 'red'}; color:white; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:bold;">${String.fromCharCode(65 + idx)}</div>` }));
+            bgColor = isCorrect ? 'green' : 'red';
+            textColor = 'white';
         }
         if (idx === mcCorrectIndex) {
-            // Richtige Antwort grün umranden
-            m.setStyle({ color: 'green' });
+            borderColor = 'green'; // grüner Rand für die richtige Antwort
         }
+        
+        m.setIcon(L.divIcon({ 
+            className: 'mc-marker', 
+            html: `<div style="background:${bgColor}; border:2px solid ${borderColor}; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${textColor};">${String.fromCharCode(65 + idx)}</div>` 
+        }));
     });
 }
 
