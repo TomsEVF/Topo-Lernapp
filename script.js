@@ -1,4 +1,4 @@
-// ==================== Globale Variablen & Konfiguration ====================
+//Globale Variablen & Konfiguration
 let map;
 let currentTerm = null;
 let currentMode = 'learn'; // 'learn', 'quiz', 'mc'
@@ -14,7 +14,7 @@ let mcCorrectIndex = -1;
 // Bunny.net Konfiguration (aus config.js)
 const BUNNY_ENABLED = typeof BUNNY_CONFIG !== 'undefined' && BUNNY_CONFIG.accessKey;
 
-// ==================== Initialisierung ====================
+//Initialisierung
 async function init() {
     // Karte initialisieren
     map = L.map('map').setView([20, 0], 2);
@@ -50,7 +50,7 @@ async function init() {
     }
 }
 
-// ==================== Daten laden ====================
+//Daten laden
 async function loadGeoData() {
     try {
         const response = await fetch('data/geodata.json');
@@ -68,7 +68,7 @@ async function loadGeoData() {
     }
 }
 
-// ==================== Benutzerverwaltung ====================
+//Benutzerverwaltung
 async function login() {
     const username = document.getElementById('username-input').value.trim();
     if (!username) return;
@@ -177,7 +177,7 @@ async function saveToBunny(profile) {
     }
 }
 
-// ==================== Fortschrittslogik ====================
+//Fortschrittslogik
 function getTermLevel(termId) {
     if (!userProfile || !userProfile.stats[termId]) return 0;
     const stat = userProfile.stats[termId];
@@ -229,7 +229,7 @@ function resetProgress() {
     }
 }
 
-// ==================== Term-Auswahl nach Schwierigkeit ====================
+//Term-Auswahl nach Schwierigkeit
 function filterTermsByDifficulty(terms) {
     if (currentDifficulty === 'all' || !userProfile) return terms;
     const [min, max] = currentDifficulty.split('-').map(Number);
@@ -253,7 +253,7 @@ function getRandomTerm() {
     return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-// ==================== Ansichten aktualisieren ====================
+//Ansichten aktualisieren
 function refreshView() {
     clearMarkers();
     if (currentMode === 'learn') {
@@ -301,7 +301,7 @@ function showAllMarkers() {
     });
 }
 
-// ==================== Quiz-Modus (Klick) ====================
+//Quiz-Modus (Klick)
 function nextQuestion() {
     if (currentMode === 'learn') return;
     clearMarkers();
@@ -414,5 +414,5 @@ function shuffleArray(arr) {
     return arr.sort(() => Math.random() - 0.5);
 }
 
-// ==================== Start ====================
+//Start
 window.addEventListener('load', init);
